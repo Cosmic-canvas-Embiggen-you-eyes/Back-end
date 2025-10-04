@@ -1,0 +1,639 @@
+openapi: 3.0.3
+info:
+  title: Nasa Backend API
+  version: 1.0.0
+  description: |
+    OpenAPI specification for the existing routes in the Nasa backend.
+    
+    Notes:
+    - Authentication uses an HttpOnly cookie named `auth_token`.
+    - Use the `/api/v1/auth/login` endpoint to receive the cookie (and a token echo in the payload).
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: https://api.example.com
+    description: Production (example)
+tags:
+  - name: Auth
+    description: Authentication routes
+  - name: Guest
+    description: Guest utilities
+  - name: Public
+    description: Static files served from the public folder
+  - name: Labels
+    description: Label management routes
+  - name: AI
+    description: LLM chat endpoint
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: StrongP@ssw0rd
+        name:
+          type: string
+          example: John Doe
+    GuestRegisterRequest:
+      type: object
+      properties:
+        experience:
+          type: string
+          description: Optional experience level for the guest
+          example: beginner
+    GuestRegisterResponse:
+      type: object
+      properties:
+        guestId:
+          type: string
+          example: guest_ab12cd34ef
+        experience:
+          type: string
+          example: beginner
+    RegisterResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: User registered. Verification code sent to email.
+        uuid:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: StrongP@ssw0rd
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Login successful
+        token:
+          type: string
+          description: JWT also set in HttpOnly cookie `auth_token`.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    VerifyRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        code:
+          type: string
+          description: 6-digit verification code
+          example: "123456"
+    ResendCodeRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+    MeResponse:
+      type: object
+      properties:
+        uuid:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        role:
+          type: string
+          description: Current user role after verification
+          example: customer
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Internal server error
+        error:
+          type: string
+          example: Unauthorized
+    AIRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          description: >-
+            User prompt. You can prefix the prompt to switch modes:
+            "use earth methods ..." (returns JSON-only),
+            "search cosmic ...", "beginner mode ...", "advanced mode ...".
+          example: beginner mode Explain what a nebula is
+    AIResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          description: Cleaned LLM response text
+          example: A nebula is a giant cloud of gas and dust in space...
+    Label:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+          example: 1
+        name:
+          type: string
+          example: Nebula Region A
+        x_axis:
+          type: number
+          example: 1234.5
+        y_axis:
+          type: number
+          example: 678.9
+        imageName:
+          type: string
+          example: starbirth
+        user_id:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+    LabelCreateRequest:
+      type: object
+      required: [name, x_axis, y_axis, imageName, user_id]
+      properties:
+        name:
+          type: string
+          example: Nebula Region A
+        x_axis:
+          type: number
+          example: 1234.5
+        y_axis:
+          type: number
+          example: 678.9
+        imageName:
+          type: string
+          example: starbirth
+        user_id:
+          type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
+paths:
+  /:
+    get:
+      tags: [Public]
+      summary: API root
+      responses:
+        '200':
+          description: Welcome text
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Our Nasa Project Backend API
+  /starbirth.html:
+    get:
+      tags: [Public]
+      summary: Starbirth static viewer page
+      responses:
+        '200':
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+  /messeir1.html:
+    get:
+      tags: [Public]
+      summary: Messeir1 static viewer page
+      responses:
+        '200':
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+  /assets/starbirth_tiles/{z}/{x}/{y}.png:
+    get:
+      tags: [Public]
+      summary: Starbirth tile image
+      parameters:
+        - in: path
+          name: z
+          required: true
+          schema:
+            type: integer
+          description: Zoom level
+        - in: path
+          name: x
+          required: true
+          schema:
+            type: integer
+          description: Tile X coordinate
+        - in: path
+          name: y
+          required: true
+          schema:
+            type: integer
+          description: Tile Y coordinate
+      responses:
+        '200':
+          description: PNG tile
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+  /assets/messeir1_tiles/{z}/{x}/{y}.png:
+    get:
+      tags: [Public]
+      summary: Messeir1 tile image
+      parameters:
+        - in: path
+          name: z
+          required: true
+          schema:
+            type: integer
+          description: Zoom level
+        - in: path
+          name: x
+          required: true
+          schema:
+            type: integer
+          description: Tile X coordinate
+        - in: path
+          name: y
+          required: true
+          schema:
+            type: integer
+          description: Tile Y coordinate
+      responses:
+        '200':
+          description: PNG tile
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered and verification email attempted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive auth cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful; cookie is set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: auth_token=eyJhbGciOi...; Path=/; HttpOnly; SameSite=Strict
+              description: HttpOnly JWT cookie for subsequent authenticated requests.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/verify:
+    post:
+      tags: [Auth]
+      summary: Verify email using a 6-digit code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        '200':
+          description: Email verified; role updated to customer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Email verified. Role updated to customer
+        '400':
+          description: Invalid or expired code; or missing fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/resend-code:
+    post:
+      tags: [Auth]
+      summary: Resend a verification code to email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendCodeRequest'
+      responses:
+        '200':
+          description: Verification code resent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Verification code resent
+        '400':
+          description: Email missing or user already verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user from cookie
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: Unauthorized (no cookie)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/guest/register:
+    post:
+      tags: [Guest]
+      summary: Generate a temporary guest identifier
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestRegisterRequest'
+      responses:
+        '200':
+          description: Guest identifier generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestRegisterResponse'
+  /api/v1/ai:
+    post:
+      tags: [AI]
+      summary: Generate a response from the AI assistant
+      description: >-
+        Sends a prompt to the AI model. You may prefix the prompt to switch modes:
+        - "use earth methods ..." → Earth Json
+        - "search cosmic ..." → Search cosmic
+        - "beginner mode ..." → beginner
+        - "advanced mode ..." → advanced
+        Any other prompt uses the default mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIRequest'
+            examples:
+              beginner:
+                summary: Beginner mode example
+                value:
+                  prompt: "beginner mode Explain what a nebula is"
+              earthJson:
+                summary: Earth JSON mode example
+                value:
+                  prompt: "use earth methods Return a JSON object describing Earth"
+      responses:
+        '200':
+          description: AI response generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIResponse'
+        '400':
+          description: Missing prompt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Failed to generate response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/labels/add:
+    post:
+      tags: [Labels]
+      summary: Create a new label
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabelCreateRequest'
+      responses:
+        '201':
+          description: Label created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/labels/image/{imageName}:
+    get:
+      tags: [Labels]
+      summary: Get labels by image name
+      parameters:
+        - in: path
+          name: imageName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Labels for the image
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+        '400':
+          description: Image name is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/labels/all:
+    get:
+      tags: [Labels]
+      summary: Get all labels
+      responses:
+        '200':
+          description: All labels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/labels/user/{user_id}:
+    get:
+      tags: [Labels]
+      summary: Get labels by user ID
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Labels created by the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Label'
+        '400':
+          description: User ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

@@ -1,0 +1,11 @@
+import express from 'express';
+import authController from '../../controllers/authController.js';
+import authToken from '../../middlewares/authmiddleware.js';
+const authRouter = express.Router();
+authRouter.post('/register', authController.UserRegisterController);
+authRouter.post('/login', authController.LoginController);
+authRouter.post('/verify', authController.VerifyController);
+authRouter.post('/resend-code', authController.ResendCodeController);
+//authRouter.post('/logout', authToken, authController.LogoutController);
+authRouter.get('/me', authToken, authController.getMe);
+export default authRouter;
